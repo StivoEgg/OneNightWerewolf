@@ -13,23 +13,32 @@ verbose         = false,
 fs = require('fs'),
 util = require('util');
 
+// log
 var 
 logFileName   = __dirname + '/debug/' + moment().format('YYYY-MM-DD-HH-mm') + '.log';
 logFile        = fs.createWriteStream(logFileName, {flags : 'w'});
 
+// game stats
 var
 PASSCODE = 'mmp',
-ROOM_LIST = ['room', 'dump'];
+ROOM_LIST = ['room', 'dump'],
+PLAYERS = {
+    'room' : [], 
+    'dump' : []
+};
 
 /* Express server set up. */
 
 //The express server handles passing our content to the browser,
-//As well as routing users where they need to go. This example is bare bones
+//As well as routing PLAYERS where they need to go. This example is bare bones
 //and will serve any file the user requests from the root of your web server (where you launch the script from)
 //so keep this in mind - this is not a production script but a development teaching tool.
 
 //Tell the server to listen for incoming connections
 http.listen(port, function(){
+    for (var room in ROOM_LIST) {
+        PLAYERS[room] = [];
+    }
     log('\t :: * :: Listening on port ' + port );
 });
   
@@ -41,15 +50,30 @@ app.get( '/', function( req, res ){
 });
 
 io.on('connection', function(socket){
-    log('a user connected');
+    
+    var addedPlayer = false;
 
+    log('a user connected');
+    
     socket.on('login', function(data) {
-        var room = ROOM_LIST[data.passcode == PASSCODE ? 0 : 0];
+        if(addedPlayer) return;
+
+        socket.username = data.username;
+        addedPlayer = true;
+        
+        var room = ROOM_LIST[data.passcode == PASSCODE ? 0 : 1];
+        
         socket.join(room, () => {
+            PLAYERS[room].push(data.username);
             log(data.username + ' joined room ' + room);
         });
+
         socket.emit('login success', {
-            numUsers: '1'
+            players: PLAYERS[room]
+        });
+
+        socket.to(room).emit('new player', {
+            players: PLAYERS[room]
         });
     })
 });

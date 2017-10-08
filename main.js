@@ -5,13 +5,21 @@ $(function () {
     var $usernameInput = $('#usernameInput'); // Input for username
     var $passcodeInput = $('#passcodeInput');
     var $messages = $('.messages'); // Messages area
+    var $players = $('.messages');
     var $inputMessage = $('.inputMessage'); // Input message input box
   
     var $loginPage = $('.login.page'); // The login page
     var $chatPage = $('.chat.page'); // The chatroom page
+    
     var username;
     var $currentInput = $usernameInput.focus();
-    
+    var connected = false;
+
+    // game stat
+    var started = false;
+    var character = '';
+    var timer = -1;
+
     // login
     // Sets the client's username
     function login () {
@@ -30,7 +38,21 @@ $(function () {
             
         }
     }
-    
+
+    function updatePlayersList (data) {
+        $players.empty();
+        for (var i = 0; i < data.players.length; i++) {
+            var $el = $('<li>').addClass('log').text(data.players[i]);
+            $players.append($el);
+        }
+    }
+
+    // Socket events
+    socket.on('new player', function (data) {
+        updatePlayersList(data);
+    })
+
+    // Keyboard events
     $window.keydown(function (event) {
         // Auto-focus the current input when a key is typed
         if (!(event.ctrlKey || event.metaKey || event.altKey) && username) {
@@ -54,4 +76,6 @@ $(function () {
     function cleanInput (input) {
         return $('<div/>').text(input).html();
     }
+
+    
 });
