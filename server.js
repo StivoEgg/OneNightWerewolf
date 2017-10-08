@@ -6,6 +6,7 @@ app             = express(),
 http            = require('http').Server(app)
 io              = require('socket.io')(http),
 UUID            = require('node-uuid'),
+moment          = require('moment'),
 
 verbose         = false,
 
@@ -13,8 +14,12 @@ fs = require('fs'),
 util = require('util');
 
 var 
-log_file_name   = __dirname + '/debug/' + new Date().valueOf() + '.log',
-log_file        = fs.createWriteStream(log_file_name, {flags : 'w'});
+logFileName   = __dirname + '/debug/' + moment().format('YYYY-MM-DD-HH-mm') + '.log';
+logFile        = fs.createWriteStream(logFileName, {flags : 'w'});
+
+var
+PASSCODE = 'mmp',
+ROOM_LIST = ['room', 'dump'];
 
 /* Express server set up. */
 
@@ -37,6 +42,16 @@ app.get( '/', function( req, res ){
 
 io.on('connection', function(socket){
     log('a user connected');
+
+    socket.on('login', function(data) {
+        var room = ROOM_LIST[data.passcode == PASSCODE ? 0 : 0];
+        socket.join(room, () => {
+            log(data.username + ' joined room ' + room);
+        });
+        socket.emit('login success', {
+            numUsers: '1'
+        });
+    })
 });
 
 //This handler will listen for requests on /*, any file from the root of our server.
@@ -56,6 +71,7 @@ app.get( '/*' , function( req, res, next ) {
 }); //app.get *
 
 function log (d) { //
-    log_file.write(util.format(d) + '\n');
+    logFile.write(util.format(d) + '\n');
     process.stdout.write(util.format(d) + '\n');
 };
+
