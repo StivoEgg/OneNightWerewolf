@@ -11,11 +11,14 @@ $(function () {
     var $loginPage = $('.login.page'); // The login page
     var $chatPage = $('.chat.page'); // The chatroom page
     
-    var username;
     var $currentInput = $usernameInput.focus();
     var connected = false;
 
     // game stat
+    var username;
+    var userId;
+    var gameId;
+    var ready;
     var started = false;
     var character = '';
     var timer = -1;
@@ -28,8 +31,7 @@ $(function () {
         // If the username is valid
         if (username) {
             socket.emit('login', {
-                'username' : username,
-                'passcode' : $passcodeInput.val()
+                'username' : username
             });
             $loginPage.fadeOut();
             $chatPage.show();
@@ -46,6 +48,11 @@ $(function () {
             $players.append($el);
         }
     }
+
+    socket.on('new user added', function (data) {
+        userId = data.userId;
+        updatePlayersList(data);
+    })
 
     // Socket events
     socket.on('new player', function (data) {

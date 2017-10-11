@@ -13,6 +13,7 @@ verbose         = false,
 fs = require('fs'),
 util = require('util');
 
+
 // log
 var 
 logFileName   = __dirname + '/debug/' + moment().format('YYYY-MM-DD-HH-mm') + '.log';
@@ -25,7 +26,8 @@ ROOM_LIST = ['room', 'dump'],
 PLAYERS = {
     'room' : [], 
     'dump' : []
-};
+},
+gameLobby = { games : {}, gameCount:0 };
 
 /* Express server set up. */
 
@@ -55,27 +57,67 @@ io.on('connection', function(socket){
 
     log('a user connected');
     
-    socket.on('login', function(data) {
+    socket.on('new user', function(data) {
         if(addedPlayer) return;
 
         socket.username = data.username;
+        socket.id = uuid();
         addedPlayer = true;
-        
-        var room = ROOM_LIST[data.passcode == PASSCODE ? 0 : 1];
-        
-        socket.join(room, () => {
-            PLAYERS[room].push(data.username);
-            log(data.username + ' joined room ' + room);
+
+        socket.emit('new user added', {
+            userId: socket.id
+        });
+    });
+
+    /**
+     * @param data.player
+     * @param data.player.username
+     * @param data.player.userId
+     */
+    socket.on('new game', function(data) {
+        // already in a game
+        if (socket.gameId != undefined) return;
+
+        var gameId = uuid();
+        var newGame = {
+            id : gameId,
+            owner : data.player,
+            members : []
+        }
+
+        socket.join(gameId, () => {
+            this.gameLobby[gameId] = newGame;
+            gameCount++;
+            socket.gameId = gameId
         });
 
-        socket.emit('login success', {
-            players: PLAYERS[room]
-        });
+        socket.emit('new game created', {
+            gameId : gameId
+        })
+    });
 
-        socket.to(room).emit('new player', {
-            players: PLAYERS[room]
-        });
-    })
+    /**
+     * @param data.player
+     * @param data.player.username
+     * @param data.player.userId
+     * @param data.gameId
+     */
+    socket.on('join game', function(data) {
+        var game = this.gameLobby[data.gameId];
+        if(socket.username != undefined && 
+            socket.id != undefined &&
+            game != undefined) {
+            
+            socket.join(game.id, () => {
+                game.members.push(data.player);
+            });
+
+            socket.to(game.id).emit('new player', {
+                members: game.members
+            });
+        }
+        
+    });
 });
 
 //This handler will listen for requests on /*, any file from the root of our server.
@@ -98,4 +140,3 @@ function log (d) { //
     logFile.write(util.format(d) + '\n');
     process.stdout.write(util.format(d) + '\n');
 };
-
